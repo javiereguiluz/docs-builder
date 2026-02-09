@@ -47,7 +47,7 @@ class BuildDocsCommand extends Command
         $this->missingFilesChecker = new MissingFilesChecker($buildConfig);
     }
 
-    protected function configure()
+    protected function configure(): void
     {
         parent::configure();
 
@@ -101,7 +101,7 @@ class BuildDocsCommand extends Command
         ;
     }
 
-    protected function initialize(InputInterface $input, OutputInterface $output)
+    protected function initialize(InputInterface $input, OutputInterface $output): void
     {
         $this->io = new SymfonyStyle($input, $output);
 
