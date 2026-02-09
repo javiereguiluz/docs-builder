@@ -43,7 +43,7 @@ class ClassReference extends Reference
             [$monorepoSubRepository, $classRelativePath] = $classPath->split('\\', 2);
             // because of monorepo structure, the first part of the classpath needs to be slugged
             // 'Agent' -> 'agent', 'AiBundle' -> 'ai-bundle', etc.
-            $monorepoSubRepository = $monorepoSubRepository->snake('-')->lower();
+            $monorepoSubRepository = $monorepoSubRepository->kebab()->lower();
             $classRelativePath = $classRelativePath->replace('\\', '/');
 
             $url = \sprintf('https://github.com/symfony/ai/blob/main/src/%s/src/%s.php', $monorepoSubRepository, $classRelativePath);
