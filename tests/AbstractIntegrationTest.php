@@ -2,7 +2,6 @@
 
 namespace SymfonyDocsBuilder\Tests;
 
-use Doctrine\RST\Builder;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Filesystem\Filesystem;
 use SymfonyDocsBuilder\BuildConfig;

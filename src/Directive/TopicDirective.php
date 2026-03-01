@@ -9,26 +9,28 @@
 
 namespace SymfonyDocsBuilder\Directive;
 
-use Doctrine\RST\Directives\SubDirective;
-use Doctrine\RST\Nodes\Node;
-use Doctrine\RST\Parser;
+use phpDocumentor\Guides\Nodes\CollectionNode;
+use phpDocumentor\Guides\Nodes\Node;
+use phpDocumentor\Guides\RestructuredText\Directives\SubDirective;
+use phpDocumentor\Guides\RestructuredText\Nodes\TopicNode;
+use phpDocumentor\Guides\RestructuredText\Parser\BlockContext;
+use phpDocumentor\Guides\RestructuredText\Parser\Directive;
+use phpDocumentor\Guides\RestructuredText\Parser\Productions\Rule;
 
 class TopicDirective extends SubDirective
 {
-    final public function processSub(Parser $parser, ?Node $document, string $variable, string $data, array $options): ?Node
+    public function __construct(protected Rule $startingRule)
     {
-        $wrapperDiv = $parser->renderTemplate(
-            'directives/topic.html.twig',
-            [
-                'name' => $data,
-            ]
-        );
-
-        return $parser->getNodeFactory()->createWrapperNode($document, $wrapperDiv, '</div>');
+        parent::__construct($startingRule);
     }
 
     public function getName(): string
     {
         return 'topic';
+    }
+
+    protected function processSub(BlockContext $blockContext, CollectionNode $collectionNode, Directive $directive): Node|null
+    {
+        return new TopicNode($directive->getData(), $collectionNode->getChildren());
     }
 }

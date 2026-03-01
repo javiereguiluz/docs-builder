@@ -11,12 +11,12 @@ declare(strict_types=1);
 
 namespace SymfonyDocsBuilder\Listener;
 
-use Doctrine\RST\Event\PreParseDocumentEvent;
+use phpDocumentor\Guides\Event\PreParseDocument;
 use SymfonyDocsBuilder\Renderers\TitleNodeRenderer;
 
 final class DuplicatedHeaderIdListener
 {
-    public function preParseDocument(PreParseDocumentEvent $event): void
+    public function __invoke(PreParseDocument $event): void
     {
         // needed because we only need to handle duplicated headers within
         // the same file, not across all the files being generated

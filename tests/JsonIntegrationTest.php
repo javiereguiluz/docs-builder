@@ -10,7 +10,6 @@
 namespace SymfonyDocsBuilder\Tests;
 
 use SymfonyDocsBuilder\DocBuilder;
-use SymfonyDocsBuilder\Renderers\TitleNodeRenderer;
 
 class JsonIntegrationTest extends AbstractIntegrationTest
 {
@@ -39,8 +38,8 @@ class JsonIntegrationTest extends AbstractIntegrationTest
                 'parents' => [],
                 'prev' => null,
                 'next' => [
-                    'title' => 'Dashboards',
-                    'link' => 'dashboards.html',
+                    'title' => 'Design',
+                    'link' => 'design.html',
                 ],
                 'title' => 'JSON Generation Test',
             ]
@@ -49,14 +48,19 @@ class JsonIntegrationTest extends AbstractIntegrationTest
         yield 'dashboards' => [
             'file' => 'dashboards',
             'data' => [
-                'parents' => [],
-                'prev' => [
-                    'title' => 'JSON Generation Test',
-                    'link' => 'index.html',
+                'parents' => [
+                    [
+                        'title' => 'Design',
+                        'link' => 'design.html',
+                    ],
                 ],
-                'next' => [
+                'prev' => [
                     'title' => 'Design',
                     'link' => 'design.html',
+                ],
+                'next' => [
+                    'title' => 'CRUD',
+                    'link' => 'crud.html',
                 ],
                 'title' => 'Dashboards',
             ]
@@ -67,12 +71,12 @@ class JsonIntegrationTest extends AbstractIntegrationTest
             'data' => [
                 'parents' => [],
                 'prev' => [
-                    'title' => 'Dashboards',
-                    'link' => 'dashboards.html',
+                    'title' => 'JSON Generation Test',
+                    'link' => 'index.html',
                 ],
                 'next' => [
-                    'title' => 'CRUD',
-                    'link' => 'crud.html',
+                    'title' => 'Dashboards',
+                    'link' => 'dashboards.html',
                 ],
                 'title' => 'Design',
                 'toc_options' => [
@@ -137,8 +141,8 @@ class JsonIntegrationTest extends AbstractIntegrationTest
                     ],
                 ],
                'prev' => [
-                   'title' => 'Design',
-                   'link' => 'design.html',
+                   'title' => 'Dashboards',
+                   'link' => 'dashboards.html',
                ],
                'next' => [
                    'title' => 'Design Sub-Page',

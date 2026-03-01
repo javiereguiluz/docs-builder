@@ -11,9 +11,8 @@ declare(strict_types=1);
 
 namespace SymfonyDocsBuilder\Generator;
 
-use Doctrine\RST\Environment;
-use Doctrine\RST\Meta\MetaEntry;
-use Doctrine\RST\Meta\Metas;
+use phpDocumentor\Guides\Nodes\DocumentTree\DocumentEntryNode;
+use phpDocumentor\Guides\Nodes\ProjectNode;
 use Symfony\Component\Console\Helper\ProgressBar;
 use Symfony\Component\Console\Output\NullOutput;
 use Symfony\Component\Console\Style\SymfonyStyle;
@@ -25,16 +24,16 @@ use function Symfony\Component\String\u;
 
 class JsonGenerator
 {
-    private $metas;
+    private $projectNode;
 
     private $buildConfig;
 
     /** @var SymfonyStyle|null */
     private $output;
 
-    public function __construct(Metas $metas, BuildConfig $buildConfig)
+    public function __construct(ProjectNode $projectNode, BuildConfig $buildConfig)
     {
-        $this->metas = $metas;
+        $this->projectNode = $projectNode;
         $this->buildConfig = $buildConfig;
     }
 
@@ -49,7 +48,7 @@ class JsonGenerator
         $fs = new Filesystem();
 
         $progressBar = new ProgressBar($this->output ?: new NullOutput());
-        $progressBar->setMaxSteps(\count($this->metas->getAll()));
+        $progressBar->setMaxSteps(\count($this->projectNode->getAllDocumentEntries()));
 
         $walkedFiles = [];
         $tocTreeHierarchy = $this->walkTocTreeAndReturnHierarchy(
@@ -62,18 +61,18 @@ class JsonGenerator
         $flattenedTocTree = $this->flattenTocTree($tocTreeHierarchy);
 
         $fJsonFiles = [];
-        foreach ($this->metas->getAll() as $filename => $metaEntry) {
+        foreach ($this->projectNode->getAllDocumentEntries() as $filename => $documentEntry) {
             $parserFilename = $filename;
             $jsonFilename = $this->buildConfig->getOutputDir().'/'.$filename.'.fjson';
 
             $crawler = new Crawler(file_get_contents($this->buildConfig->getOutputDir().'/'.$filename.'.html'));
 
             // happens when some doc is a partial included in other doc an it doesn't have any titles
-            $toc = $this->generateToc($metaEntry, $crawler);
+            $toc = $this->generateToc($documentEntry, $crawler);
             $next = $this->determineNext($parserFilename, $flattenedTocTree, $masterDocument);
             $prev = $this->determinePrev($parserFilename, $flattenedTocTree);
             $data = [
-                'title' => $metaEntry->getTitle(),
+                'title' => $documentEntry->getTitle()->toString(),
                 'parents' => $this->determineParents($parserFilename, $tocTreeHierarchy) ?: [],
                 'current_page_name' => $parserFilename,
                 'toc' => $toc,
@@ -102,18 +101,20 @@ class JsonGenerator
         $this->output = $output;
     }
 
-    private function generateToc(MetaEntry $metaEntry, Crawler $crawler): array
+    private function generateToc(DocumentEntryNode $documentEntry, Crawler $crawler): array
     {
         $flatTocTree = [];
 
         foreach ($crawler->filter('h2, h3') as $heading) {
-            $headerId = $heading->getAttribute('id') ?? Environment::slugify($heading->textContent);
+            $headerId = $heading->getAttribute('id') ?? trim(preg_replace('/[^a-z0-9]+/', '-', strtolower($heading->textContent)), '-');
+
+            $url = $documentEntry->getFile() . '.html';
 
             // this tocTree stores items sequentially (h2, h2, h3, h3, h2, h3, etc.)
             $flatTocTree[] = [
                 'level' => 'h2' === $heading->tagName ? 1 : 2,
-                'url' => sprintf('%s#%s', $metaEntry->getUrl(), $headerId),
-                'page' => u($metaEntry->getUrl())->beforeLast('.html')->toString(),
+                'url' => sprintf('%s#%s', $url, $headerId),
+                'page' => u($url)->beforeLast('.html')->toString(),
                 'fragment' => $headerId,
                 'title' => $heading->textContent,
                 'children' => [],
@@ -179,13 +180,13 @@ class JsonGenerator
         return $this->makeRelativeLink($parserFilename, $previousFileName);
     }
 
-    private function getMetaEntry(string $parserFilename, bool $throwOnMissing = false): ?MetaEntry
+    private function getDocumentEntry(string $parserFilename, bool $throwOnMissing = false): ?DocumentEntryNode
     {
-        $metaEntry = $this->metas->get($parserFilename);
+        $documentEntry = $this->projectNode->findDocumentEntry($parserFilename);
 
         // this is possible if there are invalid references
-        if (null === $metaEntry) {
-            $message = sprintf('Could not find MetaEntry for file "%s"', $parserFilename);
+        if (null === $documentEntry) {
+            $message = sprintf('Could not find DocumentEntryNode for file "%s"', $parserFilename);
 
             if ($throwOnMissing) {
                 throw new \Exception($message);
@@ -196,7 +197,7 @@ class JsonGenerator
             }
         }
 
-        return $metaEntry;
+        return $documentEntry;
     }
 
     /**
@@ -227,11 +228,13 @@ class JsonGenerator
         $hierarchy = [];
 
         // happens in edge-cases such as empty or not found documents
-        if (null === $meta = $this->getMetaEntry($filename)) {
+        if (null === $documentEntry = $this->getDocumentEntry($filename)) {
             return $hierarchy;
         }
 
-        foreach ($meta->getTocs() as $toc) {
+        $tocs = [array_map(fn(DocumentEntryNode $child) => $child->getFile(), $documentEntry->getChildren())];
+
+        foreach ($tocs as $toc) {
             foreach ($toc as $tocFilename) {
                 // only walk a file one time, the first time you see it
                 if (in_array($tocFilename, $walkedFiles, true)) {
@@ -291,13 +294,13 @@ class JsonGenerator
     private function makeRelativeLink(string $currentFilename, string $filename): array
     {
         // happens in edge-cases such as empty or not found documents
-        if (null === $meta = $this->getMetaEntry($filename)) {
+        if (null === $entry = $this->getDocumentEntry($filename)) {
             return ['title' => '', 'link' => ''];
         }
 
         return [
-            'title' => $meta->getTitle(),
-            'link' => str_repeat('../', substr_count($currentFilename, '/')).$meta->getUrl(),
+            'title' => $entry->getTitle()->toString(),
+            'link' => str_repeat('../', substr_count($currentFilename, '/')) . $entry->getFile() . '.html',
         ];
     }
 }

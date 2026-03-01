@@ -9,47 +9,72 @@
 
 namespace SymfonyDocsBuilder\Directive;
 
-use Doctrine\RST\Directives\Directive;
-use Doctrine\RST\Nodes\CodeNode;
-use Doctrine\RST\Nodes\Node;
-use Doctrine\RST\Parser;
+use phpDocumentor\Guides\Nodes\CodeNode;
+use phpDocumentor\Guides\Nodes\Node;
+use phpDocumentor\Guides\RestructuredText\Directives\BaseDirective;
+use phpDocumentor\Guides\RestructuredText\Directives\OptionMapper\CodeNodeOptionMapper;
+use phpDocumentor\Guides\RestructuredText\Parser\BlockContext;
+use phpDocumentor\Guides\RestructuredText\Parser\Directive;
+use Psr\Log\LoggerInterface;
 use SymfonyDocsBuilder\Renderers\CodeNodeRenderer;
 
-class CodeBlockDirective extends Directive
+use function trim;
+
+class CodeBlockDirective extends BaseDirective
 {
+    public function __construct(
+        private readonly LoggerInterface $logger,
+        private readonly CodeNodeOptionMapper $codeNodeOptionMapper,
+    ) {
+    }
+
     public function getName(): string
     {
         return 'code-block';
     }
 
-    public function process(Parser $parser, ?Node $node, string $variable, string $data, array $options): void
+    /** @inheritDoc */
+    public function getAliases(): array
     {
-        if (!$node instanceof CodeNode) {
-            return;
-        }
-
-        if (!CodeNodeRenderer::isLanguageSupported($data)) {
-            throw new \Exception(sprintf('Unsupported code block language "%s". Added it in %s', $data, CodeNodeRenderer::class));
-        }
-
-        $node->setLanguage($data);
-        // grab the "class" option and forward it onto the Node
-        // CodeNodeRenderer can then use it when rendering
-        $node->setClasses(isset($options['class']) ? explode(' ', $options['class']) : []);
-
-        $node->setOptions(array_merge($node->getOptions(), ['caption' => $options['caption'] ?? null]));
-
-        if ('' !== $variable) {
-            $environment = $parser->getEnvironment();
-            $environment->setVariable($variable, $node);
-        } else {
-            $document = $parser->getDocument();
-            $document->addNode($node);
-        }
+        return ['code', 'parsed-literal'];
     }
 
-    public function wantCode(): bool
-    {
-        return true;
+    /** @inheritDoc */
+    public function process(
+        BlockContext $blockContext,
+        Directive $directive,
+    ): Node|null {
+        if ($blockContext->getDocumentIterator()->isEmpty()) {
+            $this->logger->warning('The code-block has no content. Did you properly indent the code? ', $blockContext->getLoggerInformation());
+
+            return null;
+        }
+
+        $language = trim($directive->getData());
+
+        if ($language !== '' && !CodeNodeRenderer::isLanguageSupported($language)) {
+            throw new \Exception(sprintf('Unsupported code block language "%s". Add it in %s', $language, CodeNodeRenderer::class));
+        }
+
+        $node = new CodeNode(
+            $blockContext->getDocumentIterator()->toArray(),
+        );
+
+        if ($language !== '') {
+            $node->setLanguage($language);
+        } else {
+            $node->setLanguage($blockContext->getDocumentParserContext()->getCodeBlockDefaultLanguage());
+        }
+
+        $this->codeNodeOptionMapper->apply($node, $directive->getOptions(), $blockContext);
+
+        if ($directive->getVariable() !== '') {
+            $document = $blockContext->getDocumentParserContext()->getDocument();
+            $document->addVariable($directive->getVariable(), $node);
+
+            return null;
+        }
+
+        return $node;
     }
 }

@@ -2,31 +2,23 @@
 
 namespace SymfonyDocsBuilder\Node;
 
-use Doctrine\RST\Nodes\Node;
+use phpDocumentor\Guides\Nodes\CompoundNode;
+use phpDocumentor\Guides\Nodes\Node;
 
 /**
  * Wraps nodes + options in a TabDirective.
+ *
+ * @extends CompoundNode<Node>
  */
-class TabNode extends Node
+class TabNode extends CompoundNode
 {
-    /**
-     * @var Node[]
-     */
-    private array $nodes;
-
     private string $tabName;
 
-    public function __construct(array $nodes, string $tabName)
+    public function __construct(array $children, string $tabName)
     {
-        $this->nodes = $nodes;
         $this->tabName = $tabName;
 
-        parent::__construct();
-    }
-
-    public function getNodes(): array
-    {
-        return $this->nodes;
+        parent::__construct($children);
     }
 
     public function getTabName(): string

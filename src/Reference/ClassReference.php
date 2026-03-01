@@ -9,18 +9,16 @@
 
 namespace SymfonyDocsBuilder\Reference;
 
-use Doctrine\RST\Environment;
-use Doctrine\RST\References\Reference;
-use Doctrine\RST\References\ResolvedReference;
+use phpDocumentor\Guides\Nodes\Inline\HyperLinkNode;
+use phpDocumentor\Guides\Nodes\Inline\InlineNodeInterface;
+use phpDocumentor\Guides\RestructuredText\Parser\DocumentParserContext;
+use phpDocumentor\Guides\RestructuredText\TextRoles\TextRole;
 use function Symfony\Component\String\u;
 
-class ClassReference extends Reference
+class ClassReference implements TextRole
 {
-    private $symfonyRepositoryUrl;
-
-    public function __construct(string $symfonyRepositoryUrl)
+    public function __construct(private readonly string $symfonyRepositoryUrl)
     {
-        $this->symfonyRepositoryUrl = $symfonyRepositoryUrl;
     }
 
     public function getName(): string
@@ -28,9 +26,18 @@ class ClassReference extends Reference
         return 'class';
     }
 
-    public function resolve(Environment $environment, string $data): ResolvedReference
+    public function getAliases(): array
     {
-        $className = u($data)->replace('\\\\', '\\');
+        return [];
+    }
+
+    public function processNode(
+        DocumentParserContext $documentParserContext,
+        string $role,
+        string $content,
+        string $rawContent,
+    ): InlineNodeInterface {
+        $className = u($content)->replace('\\\\', '\\');
 
         /**
          * Symfony AI classes require some special handling because of its monorepo structure. Example:
@@ -63,14 +70,6 @@ class ClassReference extends Reference
             $url = sprintf('%s/%s.php', $this->symfonyRepositoryUrl, $className->replace('\\', '/'));
         }
 
-        return new ResolvedReference(
-            $environment->getCurrentFileName(),
-            $className->afterLast('\\'),
-            $url,
-            [],
-            [
-                'title' => $className,
-            ]
-        );
+        return new HyperLinkNode($className->afterLast('\\')->toString(), $url);
     }
 }

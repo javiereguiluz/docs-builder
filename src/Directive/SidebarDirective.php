@@ -9,26 +9,32 @@
 
 namespace SymfonyDocsBuilder\Directive;
 
-use Doctrine\RST\Directives\SubDirective;
-use Doctrine\RST\Nodes\Node;
-use Doctrine\RST\Parser;
+use phpDocumentor\Guides\Nodes\CollectionNode;
+use phpDocumentor\Guides\Nodes\InlineCompoundNode;
+use phpDocumentor\Guides\Nodes\Node;
+use phpDocumentor\Guides\RestructuredText\Directives\SubDirective;
+use phpDocumentor\Guides\RestructuredText\Nodes\SidebarNode;
+use phpDocumentor\Guides\RestructuredText\Parser\BlockContext;
+use phpDocumentor\Guides\RestructuredText\Parser\Directive;
+use phpDocumentor\Guides\RestructuredText\Parser\Productions\Rule;
 
 class SidebarDirective extends SubDirective
 {
+    public function __construct(protected Rule $startingRule)
+    {
+        parent::__construct($startingRule);
+    }
+
     public function getName(): string
     {
         return 'sidebar';
     }
 
-    public function processSub(Parser $parser, ?Node $document, string $variable, string $data, array $options): ?Node
+    protected function processSub(BlockContext $blockContext, CollectionNode $collectionNode, Directive $directive): Node|null
     {
-        $wrapperDiv = $parser->renderTemplate(
-            'directives/sidebar.html.twig',
-            [
-                'title' => $parser->createSpanNode($data)->render(),
-            ]
+        return new SidebarNode(
+            $directive->getDataNode() ?? InlineCompoundNode::getPlainTextInlineNode($directive->getData()),
+            $collectionNode->getChildren(),
         );
-
-        return $parser->getNodeFactory()->createWrapperNode($document, $wrapperDiv, '</div></div>');
     }
 }

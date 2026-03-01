@@ -2,17 +2,25 @@
 
 namespace SymfonyDocsBuilder;
 
-use Doctrine\RST\Builder;
+use League\Tactician\CommandBus;
+use phpDocumentor\FileSystem\FlySystemAdapter;
+use phpDocumentor\Guides\Compiler\CompilerContext;
+use phpDocumentor\Guides\Handlers\CompileDocumentsCommand;
+use phpDocumentor\Guides\Handlers\ParseDirectoryCommand;
+use phpDocumentor\Guides\Handlers\RenderCommand;
+use phpDocumentor\Guides\Nodes\ProjectNode;
 use Symfony\Component\Console\Output\NullOutput;
+use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\Filesystem\Filesystem;
 use SymfonyDocsBuilder\CI\MissingFilesChecker;
+use SymfonyDocsBuilder\CI\UrlChecker;
 use SymfonyDocsBuilder\Generator\HtmlForPdfGenerator;
 use SymfonyDocsBuilder\Generator\JsonGenerator;
 
 final class DocBuilder
 {
-    public function build(BuildConfig $config): BuildResult
+    public function build(BuildConfig $config, ?SymfonyStyle $io = null, ?UrlChecker $urlChecker = null): BuildResult
     {
         $filesystem = new Filesystem();
         if (!$config->isBuildCacheEnabled() && $filesystem->exists($config->getOutputDir())) {
@@ -23,10 +31,45 @@ final class DocBuilder
         $configFileParser = new ConfigFileParser($config, new NullOutput());
         $configFileParser->processConfigFile($config->getContentDir());
 
-        $builder = new Builder(KernelFactory::createKernel($config));
-        $builder->build($config->getContentDir(), $config->getOutputDir());
+        // Create the DI container with all services
+        $container = GuidesContainerFactory::createContainer($config, $urlChecker, $io);
+        $commandBus = $container->get(CommandBus::class);
 
-        $buildResult = new BuildResult($builder);
+        // Create filesystems for source and output
+        $sourceFilesystem = FlySystemAdapter::createForPath($config->getContentDir());
+        $outputFilesystem = FlySystemAdapter::createForPath($config->getOutputDir());
+
+        // Create project node
+        $projectNode = new ProjectNode();
+
+        // Phase 1: Parse
+        $documents = $commandBus->handle(
+            new ParseDirectoryCommand(
+                $sourceFilesystem,
+                '',
+                'rst',
+                $projectNode,
+            )
+        );
+
+        // Phase 2: Compile
+        $compilerContext = new CompilerContext($projectNode);
+        $documents = $commandBus->handle(
+            new CompileDocumentsCommand($documents, $compilerContext)
+        );
+
+        // Phase 3: Render
+        $commandBus->handle(
+            new RenderCommand(
+                'html',
+                $documents,
+                $sourceFilesystem,
+                $outputFilesystem,
+                $projectNode,
+            )
+        );
+
+        $buildResult = new BuildResult($projectNode);
 
         $missingFilesChecker = new MissingFilesChecker($config);
         $missingFiles = $missingFilesChecker->getMissingFiles();
@@ -35,26 +78,22 @@ final class DocBuilder
         }
 
         if (!$buildResult->isSuccessful()) {
-            $buildResult->prependError(sprintf('Build errors from "%s"', date('Y-m-d h:i:s')));
-            $filesystem->dumpFile($config->getOutputDir().'/build_errors.txt', implode("\n", $buildResult->getErrors()));
+            $errorLog = sprintf("Build errors from \"%s\"\n%s", date('Y-m-d h:i:s'), implode("\n", $buildResult->getErrors()));
+            $filesystem->dumpFile($config->getOutputDir().'/build_errors.txt', $errorLog);
         }
 
         if ($config->isContentAString()) {
             $htmlFilePath = $config->getOutputDir().'/index.html';
             if (is_file($htmlFilePath)) {
-                // generated HTML contents are a full HTML page, so we need to
-                // extract the contents of the <body> tag
                 $crawler = new Crawler(file_get_contents($htmlFilePath));
                 $buildResult->setStringResult(trim($crawler->filter('body')->html()));
             }
         } elseif ($config->getSubdirectoryToBuild()) {
-            $metas = $buildResult->getMetadata();
-            $htmlForPdfGenerator = new HtmlForPdfGenerator($metas, $config);
+            $htmlForPdfGenerator = new HtmlForPdfGenerator($projectNode, $config);
             $htmlForPdfGenerator->generateHtmlForPdf();
         } elseif ($config->generateJsonFiles()) {
-            $metas = $buildResult->getMetadata();
-            $jsonGenerator = new JsonGenerator($metas, $config);
-            $buildResult->setJsonResults($jsonGenerator->generateJson($builder->getIndexName()));
+            $jsonGenerator = new JsonGenerator($projectNode, $config);
+            $buildResult->setJsonResults($jsonGenerator->generateJson());
         }
 
         return $buildResult;

@@ -9,10 +9,13 @@
 
 namespace SymfonyDocsBuilder\Directive;
 
+use phpDocumentor\Guides\RestructuredText\Directives\AbstractAdmonitionDirective;
+use phpDocumentor\Guides\RestructuredText\Parser\Productions\Rule;
+
 class HintDirective extends AbstractAdmonitionDirective
 {
-    public function __construct()
+    public function __construct(protected Rule $startingRule)
     {
-        parent::__construct('hint', 'Hint');
+        parent::__construct($startingRule, 'hint', 'Hint');
     }
 }

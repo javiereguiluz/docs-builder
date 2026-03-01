@@ -11,25 +11,23 @@ declare(strict_types=1);
 
 namespace SymfonyDocsBuilder\Renderers;
 
-use Doctrine\RST\Environment;
-use Doctrine\RST\Nodes\TitleNode;
-use Doctrine\RST\Renderers\NodeRenderer;
-use Doctrine\RST\Templates\TemplateRenderer;
+use phpDocumentor\Guides\NodeRenderers\NodeRenderer;
+use phpDocumentor\Guides\Nodes\Node;
+use phpDocumentor\Guides\Nodes\TitleNode;
+use phpDocumentor\Guides\RenderContext;
+use phpDocumentor\Guides\TemplateRenderer;
 
+use function assert;
+use function is_a;
+
+/** @implements NodeRenderer<TitleNode> */
 class TitleNodeRenderer implements NodeRenderer
 {
-    /** @var TitleNode */
-    private $titleNode;
+    /** @var array<string, array<string, int>> */
+    private static array $idUsagesCountByFilename = [];
 
-    /** @var TemplateRenderer */
-    private $templateRenderer;
-
-    private static $idUsagesCountByFilename = [];
-
-    public function __construct(TitleNode $titleNode, TemplateRenderer $templateRenderer)
+    public function __construct(private readonly TemplateRenderer $templateRenderer)
     {
-        $this->titleNode = $titleNode;
-        $this->templateRenderer = $templateRenderer;
     }
 
     public static function resetHeaderIdCache(): void
@@ -37,24 +35,47 @@ class TitleNodeRenderer implements NodeRenderer
         self::$idUsagesCountByFilename = [];
     }
 
-    public function render(): string
+    public function supports(string $nodeFqcn): bool
     {
-        $filename = $this->titleNode->getEnvironment()->getCurrentFileName();
-        $id = $this->titleNode->getId();
+        return $nodeFqcn === TitleNode::class || is_a($nodeFqcn, TitleNode::class, true);
+    }
+
+    public function render(Node $node, RenderContext $renderContext): string
+    {
+        assert($node instanceof TitleNode);
+
+        $filename = $renderContext->getCurrentFileName();
+        $id = $node->getId();
 
         $idUsagesCount = self::$idUsagesCountByFilename[$filename][$id] ?? 0;
 
         if (0 === $idUsagesCount) {
-            $computedId = $this->titleNode->getId();
+            $computedId = $id;
         } else {
-            $computedId = Environment::slugify($this->titleNode->getValue()->getText().'-'.$idUsagesCount);
+            $computedId = self::slugify($node->toString().'-'.$idUsagesCount);
         }
 
         self::$idUsagesCountByFilename[$filename][$id] = $idUsagesCount + 1;
 
-        return $this->templateRenderer->render('header-title.html.twig', [
-            'titleNode' => $this->titleNode,
-            'id' => $computedId,
-        ]);
+        return $this->templateRenderer->renderTemplate(
+            $renderContext,
+            'header-title.html.twig',
+            [
+                'titleNode' => $node,
+                'id' => $computedId,
+            ]
+        );
+    }
+
+    /**
+     * Simple slugification for header IDs, replacing the old Environment::slugify().
+     */
+    private static function slugify(string $text): string
+    {
+        $text = strtolower($text);
+        $text = preg_replace('/[^a-z0-9]+/', '-', $text);
+        $text = trim($text, '-');
+
+        return $text;
     }
 }

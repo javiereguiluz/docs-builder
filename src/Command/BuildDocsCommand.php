@@ -11,10 +11,6 @@ declare(strict_types=1);
 
 namespace SymfonyDocsBuilder\Command;
 
-use Doctrine\Common\EventManager;
-use Doctrine\RST\Builder;
-use Doctrine\RST\Configuration;
-use Doctrine\RST\Meta\Metas;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -23,19 +19,14 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Filesystem\Filesystem;
 use SymfonyDocsBuilder\BuildConfig;
-use SymfonyDocsBuilder\CI\MissingFilesChecker;
 use SymfonyDocsBuilder\ConfigFileParser;
-use SymfonyDocsBuilder\Generator\HtmlForPdfGenerator;
-use SymfonyDocsBuilder\Generator\JsonGenerator;
-use SymfonyDocsBuilder\KernelFactory;
-use SymfonyDocsBuilder\Listener\BuildProgressListener;
+use SymfonyDocsBuilder\DocBuilder;
 
 class BuildDocsCommand extends Command
 {
     protected static $defaultName = 'build:docs';
 
     private $buildConfig;
-    private $missingFilesChecker;
     /** @var SymfonyStyle */
     private $io;
 
@@ -44,7 +35,6 @@ class BuildDocsCommand extends Command
         parent::__construct(self::$defaultName);
 
         $this->buildConfig = $buildConfig;
-        $this->missingFilesChecker = new MissingFilesChecker($buildConfig);
     }
 
     protected function configure(): void
@@ -78,13 +68,6 @@ class BuildDocsCommand extends Command
                 null,
                 InputOption::VALUE_REQUIRED,
                 'Path where any errors should be saved'
-            )
-            ->addOption(
-                'error-output-format',
-                null,
-                InputOption::VALUE_REQUIRED,
-                'The output format for errors on std out',
-                Configuration::OUTPUT_FORMAT_CONSOLE
             )
             ->addOption(
                 'no-theme',
@@ -132,7 +115,11 @@ class BuildDocsCommand extends Command
             $this->buildConfig->disableBuildCache();
         }
 
-        $this->buildConfig->setTheme($input->getOption('no-theme') ? Configuration::THEME_DEFAULT : 'rtd');
+        if (!$input->getOption('output-json')) {
+            $this->buildConfig->disableJsonFileGeneration();
+        }
+
+        $this->buildConfig->setTheme($input->getOption('no-theme') ? 'default' : 'rtd');
 
         $configFileParser = new ConfigFileParser($this->buildConfig, $output);
         $configFileParser->processConfigFile($sourceDir);
@@ -140,26 +127,12 @@ class BuildDocsCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $builder = new Builder(
-            KernelFactory::createKernel($this->buildConfig, $this->urlChecker ?? null)
-        );
+        $builder = new DocBuilder();
+        $buildResult = $builder->build($this->buildConfig, $this->io);
 
-        $configuration = $builder->getConfiguration();
-        $configuration->setOutputFormat($input->getOption('error-output-format'));
-        $this->addProgressListener($configuration->getEventManager());
-
-        $builder->build(
-            $this->buildConfig->getContentDir(),
-            $this->buildConfig->getOutputDir()
-        );
-
-        $buildErrors = $builder->getErrorManager()->getErrors();
-
-        $missingFiles = $this->missingFilesChecker->getMissingFiles();
-        foreach ($missingFiles as $missingFile) {
-            $message = sprintf('Missing file "%s"', $missingFile);
-            $buildErrors[] = $message;
-            $this->io->warning($message);
+        $buildErrors = $buildResult->getErrors();
+        foreach ($buildErrors as $error) {
+            $this->io->warning($error);
         }
 
         if ($logPath = $input->getOption('save-errors')) {
@@ -168,14 +141,7 @@ class BuildDocsCommand extends Command
             }
 
             $filesystem = new Filesystem();
-            $filesystem->dumpFile($logPath, implode("\n", array_map(fn($error) => is_string($error) ? $error : $error->asString(), $buildErrors)));
-        }
-
-        $metas = $builder->getMetas();
-        if ($this->buildConfig->getSubdirectoryToBuild()) {
-            $this->renderDocForPDF($metas);
-        } elseif ($input->getOption('output-json')) {
-            $this->generateJson($metas);
+            $filesystem->dumpFile($logPath, implode("\n", $buildErrors));
         }
 
         $this->io->newLine(2);
@@ -191,26 +157,5 @@ class BuildDocsCommand extends Command
         }
 
         return Command::SUCCESS;
-    }
-
-    private function generateJson(Metas $metas)
-    {
-        $this->io->note('Start exporting doc into json files');
-
-        $jsonGenerator = new JsonGenerator($metas, $this->buildConfig);
-        $jsonGenerator->setOutput($this->io);
-        $jsonGenerator->generateJson();
-    }
-
-    private function renderDocForPDF(Metas $metas)
-    {
-        $htmlForPdfGenerator = new HtmlForPdfGenerator($metas, $this->buildConfig);
-        $htmlForPdfGenerator->generateHtmlForPdf();
-    }
-
-    private function addProgressListener(EventManager $eventManager)
-    {
-        $progressListener = new BuildProgressListener($this->io);
-        $progressListener->attachListeners($eventManager);
     }
 }

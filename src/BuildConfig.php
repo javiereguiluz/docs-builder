@@ -9,7 +9,6 @@
 
 namespace SymfonyDocsBuilder;
 
-use Doctrine\RST\Configuration;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Finder\Finder;
 
@@ -38,7 +37,7 @@ class BuildConfig
     public function __construct()
     {
         $this->useBuildCache = true;
-        $this->theme = Configuration::THEME_DEFAULT;
+        $this->theme = 'default';
         $this->symfonyVersion = '4.4';
         $this->excludedPaths = [];
         $this->imagesPublicPrefix = '';

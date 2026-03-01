@@ -11,14 +11,20 @@ declare(strict_types=1);
 
 namespace SymfonyDocsBuilder\Renderers;
 
-use Doctrine\RST\Nodes\CodeNode;
-use Doctrine\RST\Renderers\NodeRenderer;
-use Doctrine\RST\Templates\TemplateRenderer;
+use phpDocumentor\Guides\NodeRenderers\NodeRenderer;
+use phpDocumentor\Guides\Nodes\CodeNode;
+use phpDocumentor\Guides\Nodes\Node;
+use phpDocumentor\Guides\RenderContext;
+use phpDocumentor\Guides\TemplateRenderer;
 use Highlight\Highlighter;
 
+use function assert;
+use function is_a;
+
+/** @implements NodeRenderer<CodeNode> */
 class CodeNodeRenderer implements NodeRenderer
 {
-    private static $isHighlighterConfigured = false;
+    private static bool $isHighlighterConfigured = false;
 
     private const LANGUAGES_MAPPING = [
         'caddy' => 'plaintext',
@@ -39,26 +45,22 @@ class CodeNodeRenderer implements NodeRenderer
         'vcl' => 'c',
     ];
 
-    /** @var CodeNode */
-    private $codeNode;
-
-    /** @var TemplateRenderer */
-    private $templateRenderer;
-
-    public function __construct(CodeNode $codeNode, TemplateRenderer $templateRenderer)
+    public function __construct(private readonly TemplateRenderer $templateRenderer)
     {
-        $this->codeNode = $codeNode;
-        $this->templateRenderer = $templateRenderer;
     }
 
-    public function render(): string
+    public function supports(string $nodeFqcn): bool
     {
-        $code = trim($this->codeNode->getValue());
-        if ($this->codeNode->isRaw()) {
-            return $code;
-        }
+        return $nodeFqcn === CodeNode::class || is_a($nodeFqcn, CodeNode::class, true);
+    }
 
-        $language = $this->codeNode->getLanguage() ?? 'php';
+    public function render(Node $node, RenderContext $renderContext): string
+    {
+        assert($node instanceof CodeNode);
+
+        $code = trim($node->getValue());
+
+        $language = $node->getLanguage() ?: 'php';
         $languageMapping = self::LANGUAGES_MAPPING[$language] ?? $language;
         $languages = array_unique([$language, $languageMapping]);
 
@@ -82,15 +84,16 @@ class CodeNodeRenderer implements NodeRenderer
 
         // 'caption' is used by code blocks to define the path of the file they belong to
         // 'patch_file' is a special value used by "diff patches", which don't correspond to any file
-        $codeCaption = $this->codeNode->getOptions()['caption'] ?? null;
+        $codeCaption = $node->getCaption()?->toString() ?? $node->getOption('caption', null);
         if ('patch_file' === $codeCaption) {
             $codeCaption = null;
         }
 
-        return $this->templateRenderer->render(
+        return $this->templateRenderer->renderTemplate(
+            $renderContext,
             'code.html.twig',
             [
-                'custom_css_classes' => $this->codeNode->getClassesString(),
+                'custom_css_classes' => $node->getClassesString(),
                 'languages' => $languages,
                 'line_numbers' => $lineNumbers,
                 'code' => $highlightedCode,
@@ -116,7 +119,7 @@ class CodeNodeRenderer implements NodeRenderer
         return \in_array($lang, $supportedLanguages, true);
     }
 
-    private function configureHighlighter()
+    private function configureHighlighter(): void
     {
         if (false === self::$isHighlighterConfigured) {
             Highlighter::registerLanguage('php', __DIR__.'/../Templates/highlight.php/php.json', true);

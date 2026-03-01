@@ -9,10 +9,13 @@
 
 namespace SymfonyDocsBuilder\Directive;
 
+use phpDocumentor\Guides\RestructuredText\Directives\AbstractAdmonitionDirective;
+use phpDocumentor\Guides\RestructuredText\Parser\Productions\Rule;
+
 class BestPracticeDirective extends AbstractAdmonitionDirective
 {
-    public function __construct()
+    public function __construct(protected Rule $startingRule)
     {
-        parent::__construct('best-practice', 'Best Practice');
+        parent::__construct($startingRule, 'best-practice', 'Best Practice');
     }
 }

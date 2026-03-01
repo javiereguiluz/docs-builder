@@ -9,11 +9,22 @@
 
 namespace SymfonyDocsBuilder\Directive;
 
-use Doctrine\RST\Directives\SubDirective;
-use Doctrine\RST\Nodes\CodeNode;
-use Doctrine\RST\Nodes\Node;
-use Doctrine\RST\Parser;
-use function strtoupper;
+use phpDocumentor\Guides\Nodes\CodeNode;
+use phpDocumentor\Guides\Nodes\CollectionNode;
+use phpDocumentor\Guides\Nodes\Configuration\ConfigurationBlockNode;
+use phpDocumentor\Guides\Nodes\Configuration\ConfigurationTab;
+use phpDocumentor\Guides\Nodes\Node;
+use phpDocumentor\Guides\RestructuredText\Directives\SubDirective;
+use phpDocumentor\Guides\RestructuredText\Parser\BlockContext;
+use phpDocumentor\Guides\RestructuredText\Parser\Directive;
+use phpDocumentor\Guides\RestructuredText\Parser\Productions\Rule;
+use Psr\Log\LoggerInterface;
+use Symfony\Component\String\Slugger\AsciiSlugger;
+use Symfony\Component\String\Slugger\SluggerInterface;
+
+use function assert;
+use function get_debug_type;
+use function sprintf;
 
 class ConfigurationBlockDirective extends SubDirective
 {
@@ -39,37 +50,50 @@ class ConfigurationBlockDirective extends SubDirective
         'yaml' => 'YAML',
     ];
 
+    private SluggerInterface $slugger;
+
+    public function __construct(
+        private readonly LoggerInterface $logger,
+        protected Rule $startingRule,
+    ) {
+        parent::__construct($startingRule);
+
+        $this->slugger = new AsciiSlugger();
+    }
+
     public function getName(): string
     {
         return 'configuration-block';
     }
 
-    public function processSub(Parser $parser, ?Node $document, string $variable, string $data, array $options): ?Node
-    {
-        $blocks = [];
-        foreach ($document->getNodes() as $node) {
-            if (!$node instanceof CodeNode) {
+    protected function processSub(
+        BlockContext $blockContext,
+        CollectionNode $collectionNode,
+        Directive $directive,
+    ): Node|null {
+        $tabs = [];
+        foreach ($collectionNode->getValue() as $child) {
+            if (!$child instanceof CodeNode) {
+                $this->logger->warning(
+                    sprintf('The ".. configuration-block::" directive only supports code blocks, "%s" given.', get_debug_type($child)),
+                    $blockContext->getLoggerInformation(),
+                );
+
                 continue;
             }
 
-            $language = $node->getLanguage() ?? 'Unknown';
+            $language = $child->getLanguage();
+            assert($language !== null);
 
-            $blocks[] = [
-                'hash' => hash('sha1', $node->getValue()),
-                'language_label' => self::LANGUAGE_LABELS[$language] ?? ucfirst(str_replace('-', ' ', $language)),
-                'language' => $language,
-                'code' => $node->render(),
-            ];
+            $label = self::LANGUAGE_LABELS[$language] ?? $this->slugger->slug($language, ' ')->title()->toString();
+
+            $tabs[] = new ConfigurationTab(
+                $label,
+                $this->slugger->slug($label)->lower()->toString(),
+                $child,
+            );
         }
 
-        $wrapperDiv = $parser->renderTemplate(
-            'directives/configuration-block.html.twig',
-            [
-                'blocks' => $blocks,
-                'title' => 'Configuration formats',
-            ]
-        );
-
-        return $parser->getNodeFactory()->createWrapperNode(null, $wrapperDiv, '</div>');
+        return new ConfigurationBlockNode($tabs);
     }
 }

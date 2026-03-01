@@ -9,10 +9,16 @@
 
 namespace SymfonyDocsBuilder\Directive;
 
-use Doctrine\RST\Directives\SubDirective;
+use phpDocumentor\Guides\RestructuredText\Directives\SubDirective;
+use phpDocumentor\Guides\RestructuredText\Parser\Productions\Rule;
 
 class IndexDirective extends SubDirective
 {
+    public function __construct(protected Rule $startingRule)
+    {
+        parent::__construct($startingRule);
+    }
+
     public function getName(): string
     {
         return 'index';

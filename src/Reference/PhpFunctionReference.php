@@ -9,18 +9,16 @@
 
 namespace SymfonyDocsBuilder\Reference;
 
-use Doctrine\RST\Environment;
-use Doctrine\RST\References\Reference;
-use Doctrine\RST\References\ResolvedReference;
+use phpDocumentor\Guides\Nodes\Inline\HyperLinkNode;
+use phpDocumentor\Guides\Nodes\Inline\InlineNodeInterface;
+use phpDocumentor\Guides\RestructuredText\Parser\DocumentParserContext;
+use phpDocumentor\Guides\RestructuredText\TextRoles\TextRole;
 use function Symfony\Component\String\u;
 
-class PhpFunctionReference extends Reference
+class PhpFunctionReference implements TextRole
 {
-    private $phpDocUrl;
-
-    public function __construct(string $phpDocUrl)
+    public function __construct(private readonly string $phpDocUrl)
     {
-        $this->phpDocUrl = $phpDocUrl;
     }
 
     public function getName(): string
@@ -28,16 +26,20 @@ class PhpFunctionReference extends Reference
         return 'phpfunction';
     }
 
-    public function resolve(Environment $environment, string $data): ResolvedReference
+    public function getAliases(): array
     {
-        return new ResolvedReference(
-            $environment->getCurrentFileName(),
-            $data,
-            sprintf('%s/function.%s.php', $this->phpDocUrl, u($data)->replace('_', '-')->lower()),
-            [],
-            [
-                'title' => $data,
-            ]
+        return [];
+    }
+
+    public function processNode(
+        DocumentParserContext $documentParserContext,
+        string $role,
+        string $content,
+        string $rawContent,
+    ): InlineNodeInterface {
+        return new HyperLinkNode(
+            $content,
+            sprintf('%s/function.%s.php', $this->phpDocUrl, u($content)->replace('_', '-')->lower()),
         );
     }
 }

@@ -9,18 +9,16 @@
 
 namespace SymfonyDocsBuilder\Reference;
 
-use Doctrine\RST\Environment;
-use Doctrine\RST\References\Reference;
-use Doctrine\RST\References\ResolvedReference;
+use phpDocumentor\Guides\Nodes\Inline\HyperLinkNode;
+use phpDocumentor\Guides\Nodes\Inline\InlineNodeInterface;
+use phpDocumentor\Guides\RestructuredText\Parser\DocumentParserContext;
+use phpDocumentor\Guides\RestructuredText\TextRoles\TextRole;
 use function Symfony\Component\String\u;
 
-class PhpClassReference extends Reference
+class PhpClassReference implements TextRole
 {
-    private $phpDocUrl;
-
-    public function __construct(string $phpDocUrl)
+    public function __construct(private readonly string $phpDocUrl)
     {
-        $this->phpDocUrl = $phpDocUrl;
     }
 
     public function getName(): string
@@ -28,18 +26,22 @@ class PhpClassReference extends Reference
         return 'phpclass';
     }
 
-    public function resolve(Environment $environment, string $data): ResolvedReference
+    public function getAliases(): array
     {
-        $className = u($data)->replace('\\\\', '\\');
+        return [];
+    }
 
-        return new ResolvedReference(
-            $environment->getCurrentFileName(),
-            $className->afterLast('\\'),
+    public function processNode(
+        DocumentParserContext $documentParserContext,
+        string $role,
+        string $content,
+        string $rawContent,
+    ): InlineNodeInterface {
+        $className = u($content)->replace('\\\\', '\\');
+
+        return new HyperLinkNode(
+            $className->afterLast('\\')->toString(),
             sprintf('%s/class.%s.php', $this->phpDocUrl, $className->replace('\\', '-')->lower()),
-            [],
-            [
-                'title' => $className,
-            ]
         );
     }
 }

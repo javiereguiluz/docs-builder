@@ -11,19 +11,16 @@ declare(strict_types=1);
 
 namespace SymfonyDocsBuilder\Listener;
 
+use phpDocumentor\Guides\Event\PostRenderProcess;
 use Symfony\Component\Filesystem\Filesystem;
 
 final class AssetsCopyListener
 {
-    /** @var string */
-    private $targetDir;
-
-    public function __construct(string $targetDir)
+    public function __construct(private readonly string $targetDir)
     {
-        $this->targetDir = $targetDir;
     }
 
-    public function postBuildRender()
+    public function __invoke(PostRenderProcess $event): void
     {
         $fs = new Filesystem();
         $fs->mirror(

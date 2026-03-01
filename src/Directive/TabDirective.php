@@ -9,9 +9,12 @@
 
 namespace SymfonyDocsBuilder\Directive;
 
-use Doctrine\RST\Directives\SubDirective;
-use Doctrine\RST\Nodes\Node;
-use Doctrine\RST\Parser;
+use phpDocumentor\Guides\Nodes\CollectionNode;
+use phpDocumentor\Guides\Nodes\Node;
+use phpDocumentor\Guides\RestructuredText\Directives\SubDirective;
+use phpDocumentor\Guides\RestructuredText\Parser\BlockContext;
+use phpDocumentor\Guides\RestructuredText\Parser\Directive;
+use phpDocumentor\Guides\RestructuredText\Parser\Productions\Rule;
 use SymfonyDocsBuilder\Node\TabNode;
 
 /**
@@ -19,18 +22,23 @@ use SymfonyDocsBuilder\Node\TabNode;
  */
 class TabDirective extends SubDirective
 {
+    public function __construct(protected Rule $startingRule)
+    {
+        parent::__construct($startingRule);
+    }
+
     public function getName(): string
     {
         return 'tab';
     }
 
-    public function processSub(Parser $parser, ?Node $document, string $variable, string $data, array $options): ?Node
+    protected function processSub(BlockContext $blockContext, CollectionNode $collectionNode, Directive $directive): Node|null
     {
-        $tabName = $data;
+        $tabName = $directive->getData();
         if (!$tabName) {
             throw new \RuntimeException(sprintf('The "tab" directive requires a tab name: ".. tab:: Tab Name".'));
         }
 
-        return new TabNode($document->getNodes(), $data);
+        return new TabNode($collectionNode->getChildren(), $tabName);
     }
 }

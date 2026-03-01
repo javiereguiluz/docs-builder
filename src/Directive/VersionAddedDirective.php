@@ -9,29 +9,13 @@
 
 namespace SymfonyDocsBuilder\Directive;
 
-use Doctrine\RST\Directives\SubDirective;
-use Doctrine\RST\Nodes\Node;
-use Doctrine\RST\Parser;
+use phpDocumentor\Guides\RestructuredText\Directives\AbstractVersionChangeDirective;
+use phpDocumentor\Guides\RestructuredText\Parser\Productions\Rule;
 
-class VersionAddedDirective extends SubDirective
+class VersionAddedDirective extends AbstractVersionChangeDirective
 {
-    public function getName(): string
+    public function __construct(protected Rule $startingRule)
     {
-        return 'versionadded';
-    }
-
-    public function processSub(Parser $parser, ?Node $document, string $variable, string $data, array $options): ?Node
-    {
-        $wrapperDiv = $parser->renderTemplate(
-            'directives/admonition.html.twig',
-            [
-                'name' => 'versionadded',
-                'text' => $data,
-                'class' => $options['class'] ?? null,
-                'version' => $data,
-            ]
-        );
-
-        return $parser->getNodeFactory()->createWrapperNode($document, $wrapperDiv, '</div>');
+        parent::__construct($startingRule, 'versionadded', 'New in version %s');
     }
 }

@@ -9,28 +9,34 @@
 
 namespace SymfonyDocsBuilder\Directive;
 
-use Doctrine\RST\Directives\SubDirective;
-use Doctrine\RST\Nodes\Node;
-use Doctrine\RST\Parser;
+use phpDocumentor\Guides\Nodes\AdmonitionNode;
+use phpDocumentor\Guides\Nodes\CollectionNode;
+use phpDocumentor\Guides\Nodes\Node;
+use phpDocumentor\Guides\RestructuredText\Directives\SubDirective;
+use phpDocumentor\Guides\RestructuredText\Parser\BlockContext;
+use phpDocumentor\Guides\RestructuredText\Parser\Directive;
+use phpDocumentor\Guides\RestructuredText\Parser\Productions\Rule;
 
 class AdmonitionDirective extends SubDirective
 {
-    public function processSub(Parser $parser, ?Node $document, string $variable, string $data, array $options): ?Node
+    public function __construct(protected Rule $startingRule)
     {
-        $wrapperDiv = $parser->renderTemplate(
-            'directives/admonition.html.twig',
-            [
-                'name' => 'default',
-                'text' => $data,
-                'class' => $options['class'] ?? null,
-            ]
-        );
-
-        return $parser->getNodeFactory()->createWrapperNode($document, $wrapperDiv, '</div>');
+        parent::__construct($startingRule);
     }
 
     public function getName(): string
     {
         return 'admonition';
+    }
+
+    protected function processSub(BlockContext $blockContext, CollectionNode $collectionNode, Directive $directive): Node|null
+    {
+        return new AdmonitionNode(
+            'default',
+            $directive->getDataNode(),
+            $directive->getData(),
+            $collectionNode->getChildren(),
+            true,
+        );
     }
 }

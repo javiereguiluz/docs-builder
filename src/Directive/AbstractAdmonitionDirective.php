@@ -9,44 +9,11 @@
 
 namespace SymfonyDocsBuilder\Directive;
 
-use Doctrine\RST\Directives\SubDirective;
-use Doctrine\RST\Nodes\Node;
-use Doctrine\RST\Parser;
+use phpDocumentor\Guides\RestructuredText\Directives\AbstractAdmonitionDirective as BaseAbstractAdmonitionDirective;
 
-abstract class AbstractAdmonitionDirective extends SubDirective
+/**
+ * @deprecated Use phpDocumentor\Guides\RestructuredText\Directives\AbstractAdmonitionDirective directly.
+ */
+abstract class AbstractAdmonitionDirective extends BaseAbstractAdmonitionDirective
 {
-    /** @var string */
-    private $name;
-
-    /** @var string */
-    private $text;
-
-    public function __construct(string $name, string $text)
-    {
-        $this->name = $name;
-        $this->text = $text;
-    }
-
-    final public function processSub(Parser $parser, ?Node $document, string $variable, string $data, array $options): ?Node
-    {
-        if (null === $document) {
-            throw new \RuntimeException('Content expected, none found.');
-        }
-
-        $wrapperDiv = $parser->renderTemplate(
-            'directives/admonition.html.twig',
-            [
-                'name' => $this->name,
-                'text' => $this->text,
-                'class' => $options['class'] ?? null,
-            ]
-        );
-
-        return $parser->getNodeFactory()->createWrapperNode($document, $wrapperDiv, '</div>');
-    }
-
-    final public function getName(): string
-    {
-        return $this->name;
-    }
 }

@@ -9,10 +9,13 @@
 
 namespace SymfonyDocsBuilder\Directive;
 
+use phpDocumentor\Guides\RestructuredText\Directives\AbstractAdmonitionDirective;
+use phpDocumentor\Guides\RestructuredText\Parser\Productions\Rule;
+
 class TipDirective extends AbstractAdmonitionDirective
 {
-    public function __construct()
+    public function __construct(protected Rule $startingRule)
     {
-        parent::__construct('tip', 'Tip');
+        parent::__construct($startingRule, 'tip', 'Tip');
     }
 }

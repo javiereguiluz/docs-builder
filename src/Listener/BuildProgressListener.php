@@ -11,75 +11,43 @@ declare(strict_types=1);
 
 namespace SymfonyDocsBuilder\Listener;
 
-use Doctrine\Common\EventManager;
-use Doctrine\RST\Event\PostParseDocumentEvent;
-use Doctrine\RST\Event\PreBuildParseEvent;
-use Doctrine\RST\Event\PreBuildRenderEvent;
+use phpDocumentor\Guides\Event\PostCollectFilesForParsingEvent;
+use phpDocumentor\Guides\Event\PostParseDocument;
+use phpDocumentor\Guides\Event\PreRenderProcess;
 use Symfony\Component\Console\Helper\ProgressBar;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
 class BuildProgressListener
 {
-    private $io;
-    private $progressBar;
-    private $parsedFiles = [];
+    private ProgressBar $progressBar;
+    private array $parsedFiles = [];
 
-    public function __construct(SymfonyStyle $io)
+    public function __construct(private readonly SymfonyStyle $io)
     {
-        $this->io = $io;
         $this->progressBar = new ProgressBar($io);
     }
 
-    public function attachListeners(EventManager $eventManager)
+    public function onFilesCollected(PostCollectFilesForParsingEvent $event): void
     {
-        // sets up the "parsing" progress bar
-        $eventManager->addEventListener(
-            [PreBuildParseEvent::PRE_BUILD_PARSE],
-            $this
-        );
-
-        // advances "parsing" progress bar
-        $eventManager->addEventListener(
-            [PostParseDocumentEvent::POST_PARSE_DOCUMENT],
-            $this
-        );
-
-        // tries to handle progress bar for "rendering"
-        $eventManager->addEventListener(
-            [PreBuildRenderEvent::PRE_BUILD_RENDER],
-            $this
-        );
+        $fileCount = count($event->getFiles());
+        $this->io->note(sprintf('Start parsing %d rst files', $fileCount));
+        $this->progressBar->setMaxSteps($fileCount);
     }
 
-    /**
-     * Called very early: used to initialize the "parsing" progress bar.
-     *
-     * @param PreBuildParseEvent $event
-     */
-    public function preBuildParse(PreBuildParseEvent $event)
+    public function onPostParseDocument(PostParseDocument $event): void
     {
-        $parseQueue = $event->getParseQueue();
-        $parseCount = \count($parseQueue->getAllFilesThatRequireParsing());
-        $this->io->note(sprintf('Start parsing %d out-of-date rst files', $parseCount));
-        $this->progressBar->setMaxSteps($parseCount);
-    }
-
-    public function postParseDocument(PostParseDocumentEvent $postParseDocumentEvent): void
-    {
-        $file = $postParseDocumentEvent->getDocumentNode()->getEnvironment()->getCurrentFileName();
+        $file = $event->getFileName();
         if (!\in_array($file, $this->parsedFiles, true)) {
             $this->parsedFiles[] = $file;
             $this->progressBar->advance();
         }
     }
 
-    public function preBuildRender()
+    public function onPreRender(PreRenderProcess $event): void
     {
-        // finishes the "parse" progress bar
         $this->progressBar->finish();
 
         $this->io->newLine(2);
         $this->io->note('Rendering the HTML files...');
-        // TODO: create a proper progress bar for rendering
     }
 }

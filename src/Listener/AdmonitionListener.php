@@ -11,11 +11,11 @@ declare(strict_types=1);
 
 namespace SymfonyDocsBuilder\Listener;
 
-use Doctrine\RST\Event\PreParseDocumentEvent;
+use phpDocumentor\Guides\Event\PreParseDocument;
 
 final class AdmonitionListener
 {
-    public function preParseDocument(PreParseDocumentEvent $event)
+    public function __invoke(PreParseDocument $event): void
     {
         // TODO: remove this temporary fix when Symfony Docs are updated to use the new '.. screencast::' directive
         $event->setContents(str_replace('.. admonition:: Screencast', '.. screencast::', $event->getContents()));

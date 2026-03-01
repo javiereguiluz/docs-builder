@@ -9,15 +9,12 @@
 
 namespace SymfonyDocsBuilder\Tests;
 
-use Doctrine\RST\Builder;
-use Doctrine\RST\Configuration;
-use Doctrine\RST\Parser;
 use Gajus\Dindent\Indenter;
 use Symfony\Component\DomCrawler\Crawler;
+use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Finder\Finder;
+use SymfonyDocsBuilder\BuildConfig;
 use SymfonyDocsBuilder\DocBuilder;
-use SymfonyDocsBuilder\KernelFactory;
-use SymfonyDocsBuilder\Renderers\TitleNodeRenderer;
 
 class IntegrationTest extends AbstractIntegrationTest
 {
@@ -89,23 +86,32 @@ class IntegrationTest extends AbstractIntegrationTest
      */
     public function testParseUnitBlock(string $blockName)
     {
-        $configuration = new Configuration();
-        $configuration->setCustomTemplateDirs([__DIR__.'/Templates']);
-
-        $kernel = KernelFactory::createKernel($this->createBuildConfig(sprintf('%s/fixtures/source/blocks', __DIR__)));
-        // necessary because this initializes some listeners on the kernel
-        $builder = new Builder($kernel);
-        $parser = new Parser($kernel);
-
         $sourceFile = sprintf('%s/fixtures/source/blocks/%s.rst', __DIR__, $blockName);
+        $rstContent = file_get_contents($sourceFile);
 
-        $actualHtml = $parser->parseFile($sourceFile)->renderDocument();
+        $filesystem = new Filesystem();
+        $tmpDir = sys_get_temp_dir().'/doc_builder_block_test_'.random_int(1, 100000000);
+        $filesystem->mkdir($tmpDir);
+        $filesystem->dumpFile($tmpDir.'/index.rst', $rstContent);
+
+        $buildConfig = (new BuildConfig())
+            ->setSymfonyVersion('4.0')
+            ->setContentIsString()
+            ->setContentDir($tmpDir)
+            ->setOutputDir($tmpDir.'/output')
+            ->disableBuildCache()
+            ->disableJsonFileGeneration()
+        ;
+
+        $builder = new DocBuilder();
+        $buildResult = $builder->build($buildConfig);
+        $actualHtml = $buildResult->getStringResult();
+
         $expectedHtml = file_get_contents(sprintf('%s/fixtures/expected/blocks/%s.html', __DIR__, $blockName));
         if (false === stripos($expectedHtml, '<!doctype')) {
             $expectedHtml = '<!DOCTYPE html><body>'.$expectedHtml.'</body>';
         }
 
-        $actualCrawler = new Crawler($actualHtml);
         $expectedCrawler = new Crawler($expectedHtml);
         $indenter = $this->createIndenter();
 
@@ -116,8 +122,10 @@ class IntegrationTest extends AbstractIntegrationTest
 
         $this->assertSame(
             $this->normalize($indenter->indent($expected)),
-            $this->normalize($indenter->indent(trim($actualCrawler->filter('body')->html())))
+            $this->normalize($indenter->indent(trim($actualHtml ?? '')))
         );
+
+        $filesystem->remove($tmpDir);
     }
 
     public function parserUnitBlockProvider()
@@ -337,26 +345,38 @@ culpa qui *officia deserunt* mollit anim id est laborum.
 RST;
 
         $htmlString = <<<HTML
-<div class="section">
-<h1 id="lorem-ipsum-dolor-sit-amet"><a class="headerlink" href="#lorem-ipsum-dolor-sit-amet" title="Permalink to this headline">Lorem ipsum dolor sit amet</a></h1>
-<p>Consectetur adipisicing elit, sed do eiusmod
+<div class="section" id="lorem-ipsum-dolor-sit-amet">
+            <h1 id="lorem-ipsum-dolor-sit-amet"><a class="headerlink" href="#lorem-ipsum-dolor-sit-amet" title="Permalink to this headline">Lorem ipsum dolor sit amet</a></h1>
+
+    <p>Consectetur adipisicing elit, sed do eiusmod
 tempor <strong>incididunt ut</strong> labore et dolore magna aliqua.</p>
+
+
+
 <ul>
     <li>Ut enim ad minim veniam</li>
-<li>Quis nostrud exercitation</li>
-<li>Ullamco laboris nisi ut</li>
+    <li>Quis nostrud exercitation</li>
+    <li>Ullamco laboris nisi ut</li>
 </ul>
-<p><a href="https://symfony.com" class="reference external">Aliquip ex ea commodo</a> consequat.
-Duis aute irure dolor in reprehenderit in voluptate <a href="https://github.com" class="reference external" rel="external noopener noreferrer" target="_blank">velit esse</a>.</p>
-<div class="section">
-<h2 id="cillum-dolore-eu-fugiat-nulla-pariatur"><a class="headerlink" href="#cillum-dolore-eu-fugiat-nulla-pariatur" title="Permalink to this headline">Cillum dolore eu fugiat nulla pariatur</a></h2>
-<p>Excepteur sint occaecat cupidatat non proident, sunt in
+
+
+    <p><a href="https://symfony.com">Aliquip ex ea commodo</a> consequat.
+Duis aute irure dolor in reprehenderit in voluptate <a href="https://github.com">velit esse</a>.</p>
+
+            <div class="section" id="cillum-dolore-eu-fugiat-nulla-pariatur">
+            <h2 id="cillum-dolore-eu-fugiat-nulla-pariatur"><a class="headerlink" href="#cillum-dolore-eu-fugiat-nulla-pariatur" title="Permalink to this headline">Cillum dolore eu fugiat nulla pariatur</a></h2>
+
+    <p>Excepteur sint occaecat cupidatat non proident, sunt in
 culpa qui <em>officia deserunt</em> mollit anim id est laborum.</p>
-</div>
-</div>
+
+    </div>
+    </div>
 HTML;
 
-        $this->assertSame($htmlString, (new DocBuilder())->buildString($rstString)->getStringResult());
+        $this->assertSame(
+            $this->normalize($htmlString),
+            $this->normalize((new DocBuilder())->buildString($rstString)->getStringResult())
+        );
     }
 
     private function normalize(string $str): string

@@ -11,8 +11,8 @@ declare(strict_types=1);
 
 namespace SymfonyDocsBuilder\Generator;
 
-use Doctrine\RST\Meta\MetaEntry;
-use Doctrine\RST\Meta\Metas;
+use phpDocumentor\Guides\Nodes\DocumentTree\DocumentEntryNode;
+use phpDocumentor\Guides\Nodes\ProjectNode;
 use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Finder\Finder;
@@ -21,13 +21,13 @@ use function Symfony\Component\String\u;
 
 class HtmlForPdfGenerator
 {
-    private $metas;
+    private $projectNode;
 
     private $buildConfig;
 
-    public function __construct(Metas $metas, BuildConfig $buildConfig)
+    public function __construct(ProjectNode $projectNode, BuildConfig $buildConfig)
     {
-        $this->metas = $metas;
+        $this->projectNode = $projectNode;
         $this->buildConfig = $buildConfig;
     }
 
@@ -51,8 +51,8 @@ class HtmlForPdfGenerator
 
         // extracting all files from index's TOC, in the right order
         $parserFilename = $this->getParserFilename($indexFile, $this->buildConfig->getOutputDir());
-        $meta = $this->getMetaEntry($parserFilename);
-        $files = current($meta->getTocs());
+        $meta = $this->getDocumentEntry($parserFilename);
+        $files = array_map(fn(DocumentEntryNode $child) => $child->getFile(), $meta->getChildren());
         array_unshift($files, sprintf('%s/index', $this->buildConfig->getSubdirectoryToBuild()));
 
         // building one big html file with all contents
@@ -60,7 +60,7 @@ class HtmlForPdfGenerator
         $htmlDir = $this->buildConfig->getOutputDir();
         $relativeImagesPath = str_repeat('../', substr_count($this->buildConfig->getSubdirectoryToBuild(), '/'));
         foreach ($files as $file) {
-            $meta = $this->getMetaEntry($file);
+            $meta = $this->getDocumentEntry($file);
 
             $filename = sprintf('%s/%s.html', $htmlDir, $file);
             if (!$fs->exists($filename)) {
@@ -160,15 +160,15 @@ class HtmlForPdfGenerator
         return $content;
     }
 
-    private function getMetaEntry(string $parserFilename): MetaEntry
+    private function getDocumentEntry(string $parserFilename): DocumentEntryNode
     {
-        $metaEntry = $this->metas->get($parserFilename);
+        $documentEntry = $this->projectNode->findDocumentEntry($parserFilename);
 
-        if (null === $metaEntry) {
-            throw new \LogicException(sprintf('Could not find MetaEntry for file "%s"', $parserFilename));
+        if (null === $documentEntry) {
+            throw new \LogicException(sprintf('Could not find DocumentEntryNode for file "%s"', $parserFilename));
         }
 
-        return $metaEntry;
+        return $documentEntry;
     }
 
     private function getParserFilename(string $filePath, string $inputDir): string

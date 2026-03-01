@@ -9,18 +9,16 @@
 
 namespace SymfonyDocsBuilder\Reference;
 
-use Doctrine\RST\Environment;
-use Doctrine\RST\References\Reference;
-use Doctrine\RST\References\ResolvedReference;
+use phpDocumentor\Guides\Nodes\Inline\HyperLinkNode;
+use phpDocumentor\Guides\Nodes\Inline\InlineNodeInterface;
+use phpDocumentor\Guides\RestructuredText\Parser\DocumentParserContext;
+use phpDocumentor\Guides\RestructuredText\TextRoles\TextRole;
 use function Symfony\Component\String\u;
 
-class MethodReference extends Reference
+class MethodReference implements TextRole
 {
-    private $symfonyRepositoryUrl;
-
-    public function __construct(string $symfonyRepositoryUrl)
+    public function __construct(private readonly string $symfonyRepositoryUrl)
     {
-        $this->symfonyRepositoryUrl = $symfonyRepositoryUrl;
     }
 
     public function getName(): string
@@ -28,25 +26,30 @@ class MethodReference extends Reference
         return 'method';
     }
 
-    public function resolve(Environment $environment, string $data): ResolvedReference
+    public function getAliases(): array
     {
-        $data = u($data);
+        return [];
+    }
+
+    public function processNode(
+        DocumentParserContext $documentParserContext,
+        string $role,
+        string $content,
+        string $rawContent,
+    ): InlineNodeInterface {
+        $data = u($content);
         if (!$data->containsAny('::')) {
-            throw new \RuntimeException(sprintf('Malformed method reference "%s" in file "%s"', $data, $environment->getCurrentFileName()));
+            throw new \RuntimeException(sprintf('Malformed method reference "%s"', $data));
         }
 
         [$className, $methodName] = $data->split('::', 2);
         $className = $className->replace('\\\\', '\\');
 
         $scrollTextFragment = sprintf('#:~:text=%s', rawurlencode('function '.$methodName));
-        return new ResolvedReference(
-            $environment->getCurrentFileName(),
+
+        return new HyperLinkNode(
             $methodName.'()',
             sprintf('%s/%s.php%s', $this->symfonyRepositoryUrl, $className->replace('\\', '/'), $scrollTextFragment),
-            [],
-            [
-                'title' => sprintf('%s::%s()', $className, $methodName),
-            ]
         );
     }
 }

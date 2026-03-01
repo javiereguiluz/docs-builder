@@ -9,11 +9,14 @@
 
 namespace SymfonyDocsBuilder\Directive;
 
+use phpDocumentor\Guides\RestructuredText\Directives\AbstractAdmonitionDirective;
+use phpDocumentor\Guides\RestructuredText\Parser\Productions\Rule;
+
 class WarningDirective extends AbstractAdmonitionDirective
 {
-    public function __construct()
+    public function __construct(protected Rule $startingRule)
     {
         // we render warning and caution the same
-        parent::__construct('warning', 'Warning');
+        parent::__construct($startingRule, 'warning', 'Warning');
     }
 }

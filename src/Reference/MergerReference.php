@@ -9,26 +9,32 @@
 
 namespace SymfonyDocsBuilder\Reference;
 
-use Doctrine\RST\Environment;
-use Doctrine\RST\References\Reference;
-use Doctrine\RST\References\ResolvedReference;
+use phpDocumentor\Guides\Nodes\Inline\InlineNodeInterface;
+use phpDocumentor\Guides\Nodes\Inline\PlainTextInlineNode;
+use phpDocumentor\Guides\RestructuredText\Parser\DocumentParserContext;
+use phpDocumentor\Guides\RestructuredText\TextRoles\TextRole;
 
 /**
  * @deprecated
  */
-class MergerReference extends Reference
+class MergerReference implements TextRole
 {
     public function getName(): string
     {
         return 'merger';
     }
 
-    public function resolve(Environment $environment, string $data): ResolvedReference
+    public function getAliases(): array
     {
-        return new ResolvedReference(
-            $environment->getCurrentFileName(),
-            $data,
-            '#'
-        );
+        return [];
+    }
+
+    public function processNode(
+        DocumentParserContext $documentParserContext,
+        string $role,
+        string $content,
+        string $rawContent,
+    ): InlineNodeInterface {
+        return new PlainTextInlineNode($content);
     }
 }

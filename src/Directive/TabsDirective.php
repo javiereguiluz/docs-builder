@@ -9,52 +9,43 @@
 
 namespace SymfonyDocsBuilder\Directive;
 
-use Doctrine\RST\Directives\SubDirective;
-use Doctrine\RST\Nodes\Node;
-use Doctrine\RST\Parser;
+use phpDocumentor\Guides\Nodes\CollectionNode;
+use phpDocumentor\Guides\Nodes\Node;
+use phpDocumentor\Guides\RestructuredText\Directives\SubDirective;
+use phpDocumentor\Guides\RestructuredText\Parser\BlockContext;
+use phpDocumentor\Guides\RestructuredText\Parser\Directive;
+use phpDocumentor\Guides\RestructuredText\Parser\Productions\Rule;
 use SymfonyDocsBuilder\Node\TabNode;
+use SymfonyDocsBuilder\Node\TabsNode;
 
 class TabsDirective extends SubDirective
 {
+    public function __construct(protected Rule $startingRule)
+    {
+        parent::__construct($startingRule);
+    }
+
     public function getName(): string
     {
         return 'tabs';
     }
 
-    public function processSub(Parser $parser, ?Node $document, string $variable, string $data, array $options): ?Node
+    protected function processSub(BlockContext $blockContext, CollectionNode $collectionNode, Directive $directive): Node|null
     {
-        $tabsTitle = $data;
+        $tabsTitle = $directive->getData();
         if (!$tabsTitle) {
             throw new \RuntimeException(sprintf('The "tabs" directive requires a title: ".. tabs:: Title".'));
         }
 
-        $blocks = [];
-        foreach ($document->getNodes() as $tabNode) {
+        $tabs = [];
+        foreach ($collectionNode->getChildren() as $tabNode) {
             if (!$tabNode instanceof TabNode) {
                 throw new \RuntimeException(sprintf('Only ".. tab::" content can appear within the "tabs" directive.'));
             }
 
-            $content = '';
-            foreach ($tabNode->getNodes() as $node) {
-                $content .= $node->render();
-            }
+            $tabs[] = $tabNode;
+        }
 
-            $blocks[] = [
-                'hash' => hash('sha1', $tabNode->getTabName()),
-                'language_label' => $tabNode->getTabName(),
-                'language' => $tabNode->getSluggedTabName(),
-                'code' => $content,
-            ];
-         }
-
-        $wrapperDiv = $parser->renderTemplate(
-            'directives/configuration-block.html.twig',
-            [
-                'blocks' => $blocks,
-                'title' => $tabsTitle,
-            ]
-        );
-
-        return $parser->getNodeFactory()->createWrapperNode(null, $wrapperDiv, '</div>');
+        return new TabsNode($tabsTitle, $tabs);
     }
 }

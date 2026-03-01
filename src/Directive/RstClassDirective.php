@@ -2,43 +2,81 @@
 
 namespace SymfonyDocsBuilder\Directive;
 
-use Doctrine\RST\Directives\SubDirective;
-use Doctrine\RST\HTML\Directives\ClassDirective;
-use Doctrine\RST\Nodes\Node;
-use Doctrine\RST\Parser;
+use phpDocumentor\Guides\Nodes\ClassNode;
+use phpDocumentor\Guides\Nodes\CollectionNode;
+use phpDocumentor\Guides\Nodes\DocumentNode;
+use phpDocumentor\Guides\Nodes\Node;
+use phpDocumentor\Guides\RestructuredText\Directives\SubDirective;
+use phpDocumentor\Guides\RestructuredText\Parser\BlockContext;
+use phpDocumentor\Guides\RestructuredText\Parser\Directive;
+use phpDocumentor\Guides\RestructuredText\Parser\Productions\Rule;
+use Symfony\Component\String\Slugger\AsciiSlugger;
+
+use function array_map;
+use function array_merge;
+use function explode;
 
 /**
  * Allows you to add custom classes to the next directive.
  */
 class RstClassDirective extends SubDirective
 {
-    private $classDirective;
-
-    public function __construct(ClassDirective $classDirective)
+    public function __construct(protected Rule $startingRule)
     {
-        $this->classDirective = $classDirective;
+        parent::__construct($startingRule);
+    }
+
+    public function getName(): string
+    {
+        return 'rst-class';
+    }
+
+    /** @return string[] */
+    public function getAliases(): array
+    {
+        return ['class'];
+    }
+
+    protected function processSub(
+        BlockContext $blockContext,
+        CollectionNode $collectionNode,
+        Directive $directive,
+    ): Node|null {
+        $classes = explode(' ', $directive->getData());
+
+        $normalizedClasses = array_map(
+            static fn (string $class): string => (new AsciiSlugger())->slug($class)->lower()->toString(),
+            $classes,
+        );
+
+        $collectionNode->setClasses($normalizedClasses);
+
+        if ($collectionNode->getChildren() === []) {
+            $classNode = new ClassNode($directive->getData());
+            $classNode->setClasses($classes);
+
+            return $classNode;
+        }
+
+        $this->setNodesClasses($collectionNode->getChildren(), $classes);
+
+        return new CollectionNode($collectionNode->getChildren());
     }
 
     /**
-     * @param string[] $options
+     * @param Node[] $nodes
+     * @param string[] $classes
      */
-    public function processSub(
-        Parser $parser,
-        ?Node $document,
-        string $variable,
-        string $data,
-        array $options
-    ): ?Node {
-        return $this->classDirective->processSub($parser, $document, $variable, $data, $options);
-    }
-
-    public function appliesToNonBlockContent(): bool
+    private function setNodesClasses(array $nodes, array $classes): void
     {
-        return $this->classDirective->appliesToNonBlockContent();
-    }
+        foreach ($nodes as $node) {
+            $node->setClasses(array_merge($node->getClasses(), $classes));
 
-    public function getName() : string
-    {
-        return 'rst-class';
+            if (!($node instanceof DocumentNode)) {
+                continue;
+            }
+
+            $this->setNodesClasses($node->getNodes(), $classes);
+        }
     }
 }
