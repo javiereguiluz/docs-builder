@@ -34,6 +34,7 @@ use SymfonyDocsBuilder\Reference as SymfonyReferences;
 use SymfonyDocsBuilder\Renderers\CodeNodeRenderer;
 use SymfonyDocsBuilder\Renderers\TabsNodeRenderer;
 use SymfonyDocsBuilder\Renderers\TitleNodeRenderer;
+use SymfonyDocsBuilder\Renderers\VersionUrlPreNodeRenderer;
 
 final class GuidesContainerFactory
 {
@@ -228,6 +229,10 @@ final class GuidesContainerFactory
             $container->register(UrlChecker::class, UrlChecker::class)->setSynthetic(true);
             $urlTransformerDef->setArgument('$urlChecker', new Reference(UrlChecker::class));
         }
+
+        $container->register(VersionUrlPreNodeRenderer::class)
+            ->setArgument('$symfonyVersion', $buildConfig->getSymfonyVersion())
+            ->addTag('phpdoc.guides.prerenderer');
     }
 
     private static function registerEventListeners(ContainerBuilder $container, BuildConfig $buildConfig, ?SymfonyStyle $io = null): void
