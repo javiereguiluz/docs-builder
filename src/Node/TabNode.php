@@ -25,9 +25,4 @@ class TabNode extends CompoundNode
     {
         return $this->tabName;
     }
-
-    public function getSluggedTabName(): string
-    {
-        return strtolower(str_replace(' ', '-', $this->tabName));
-    }
 }

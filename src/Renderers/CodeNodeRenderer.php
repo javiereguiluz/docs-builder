@@ -25,6 +25,8 @@ use function is_a;
 class CodeNodeRenderer implements NodeRenderer
 {
     private static bool $isHighlighterConfigured = false;
+    private static ?array $supportedLanguagesCache = null;
+    private ?Highlighter $highlighter = null;
 
     private const LANGUAGES_MAPPING = [
         'caddy' => 'plaintext',
@@ -70,8 +72,10 @@ class CodeNodeRenderer implements NodeRenderer
         } else {
             $this->configureHighlighter();
 
-            $highLighter = new Highlighter();
-            $highlightedCode = $highLighter->highlight($languageMapping, $code)->value;
+            if (null === $this->highlighter) {
+                $this->highlighter = new Highlighter();
+            }
+            $highlightedCode = $this->highlighter->highlight($languageMapping, $code)->value;
         }
 
         if ('terminal' === $language) {
@@ -108,15 +112,17 @@ class CodeNodeRenderer implements NodeRenderer
 
     public static function isLanguageSupported(string $lang): bool
     {
-        $highlighter = new Highlighter();
-        $supportedLanguages = array_merge(
-            array_keys(self::LANGUAGES_MAPPING),
-            $highlighter->listRegisteredLanguages(true),
-            // not highlighted, but valid
-            ['text']
-        );
+        if (null === self::$supportedLanguagesCache) {
+            $highlighter = new Highlighter();
+            self::$supportedLanguagesCache = array_merge(
+                array_keys(self::LANGUAGES_MAPPING),
+                $highlighter->listRegisteredLanguages(true),
+                // not highlighted, but valid
+                ['text']
+            );
+        }
 
-        return \in_array($lang, $supportedLanguages, true);
+        return \in_array($lang, self::$supportedLanguagesCache, true);
     }
 
     private function configureHighlighter(): void

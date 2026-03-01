@@ -177,24 +177,14 @@ class BuildConfig
 
     public function setOutputDir(string $outputDir): self
     {
-        (new Filesystem())->mkdir($outputDir);
-        if (!file_exists($outputDir)) {
-            throw new \InvalidArgumentException(sprintf('Doc builder output directory "%s" does not exist', $outputDir));
-        }
-
-        $this->outputDir = rtrim(realpath($outputDir), DIRECTORY_SEPARATOR);
+        $this->outputDir = $this->ensureDirectory($outputDir, 'output');
 
         return $this;
     }
 
     public function setCacheDir(string $cacheDir): self
     {
-        (new Filesystem())->mkdir($cacheDir);
-        if (!file_exists($cacheDir)) {
-            throw new \InvalidArgumentException(sprintf('Doc builder cache directory "%s" does not exist', $cacheDir));
-        }
-
-        $this->cacheDir = rtrim(realpath($cacheDir), DIRECTORY_SEPARATOR);
+        $this->cacheDir = $this->ensureDirectory($cacheDir, 'cache');
 
         return $this;
     }
@@ -205,14 +195,19 @@ class BuildConfig
      */
     public function setImagesDir(string $imagesDir): self
     {
-        (new Filesystem())->mkdir($imagesDir);
-        if (!file_exists($imagesDir)) {
-            throw new \InvalidArgumentException(sprintf('Doc builder images directory "%s" does not exist', $imagesDir));
-        }
-
-        $this->imagesDir = rtrim(realpath($imagesDir), DIRECTORY_SEPARATOR);
+        $this->imagesDir = $this->ensureDirectory($imagesDir, 'images');
 
         return $this;
+    }
+
+    private function ensureDirectory(string $dir, string $label): string
+    {
+        (new Filesystem())->mkdir($dir);
+        if (!file_exists($dir)) {
+            throw new \InvalidArgumentException(sprintf('Doc builder %s directory "%s" does not exist', $label, $dir));
+        }
+
+        return rtrim(realpath($dir), DIRECTORY_SEPARATOR);
     }
 
     /**

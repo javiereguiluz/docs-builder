@@ -10,7 +10,6 @@ use phpDocumentor\Guides\Handlers\CompileDocumentsCommand;
 use phpDocumentor\Guides\Handlers\ParseDirectoryCommand;
 use phpDocumentor\Guides\Handlers\RenderCommand;
 use phpDocumentor\Guides\Nodes\ProjectNode;
-use Symfony\Component\Console\Output\NullOutput;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\Filesystem\Filesystem;
@@ -28,9 +27,6 @@ final class DocBuilder
             $filesystem->remove($config->getOutputDir());
         }
         $filesystem->mkdir($config->getOutputDir());
-
-        $configFileParser = new ConfigFileParser($config, new NullOutput());
-        $configFileParser->processConfigFile($config->getContentDir());
 
         // Create the DI container with all services
         $container = GuidesContainerFactory::createContainer($config, $urlChecker, $io);

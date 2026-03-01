@@ -21,10 +21,13 @@ use SymfonyDocsBuilder\BuildConfig;
 
 class CopyImagesTransformer implements NodeTransformer
 {
+    private readonly Filesystem $filesystem;
+
     public function __construct(
         private readonly BuildConfig $buildConfig,
         private readonly ?LoggerInterface $logger = null,
     ) {
+        $this->filesystem = new Filesystem();
     }
 
     public function enterNode(Node $node, CompilerContext $compilerContext): Node
@@ -45,10 +48,9 @@ class CopyImagesTransformer implements NodeTransformer
         }
 
         $fileInfo = new \SplFileInfo($sourceImage);
-        $fs = new Filesystem();
 
         $newAbsoluteFilePath = $this->buildConfig->getImagesDir().'/'.$fileInfo->getFilename();
-        $fs->copy($sourceImage, $newAbsoluteFilePath, true);
+        $this->filesystem->copy($sourceImage, $newAbsoluteFilePath, true);
 
         if ('' === $this->buildConfig->getImagesPublicPrefix()) {
             $newUrlPath = '_images/'.$fileInfo->getFilename();

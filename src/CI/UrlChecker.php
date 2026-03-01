@@ -13,17 +13,22 @@ namespace SymfonyDocsBuilder\CI;
 
 use Symfony\Component\HttpClient\HttpClient;
 use Symfony\Contracts\HttpClient\Exception\HttpExceptionInterface;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final class UrlChecker
 {
     private $invalidUrls = [];
+    private HttpClientInterface $httpClient;
+
+    public function __construct()
+    {
+        $this->httpClient = HttpClient::create(['timeout' => 10]);
+    }
 
     public function checkUrl(string $url): void
     {
-        $httpClient = HttpClient::create(['timeout' => 10]);
-
         try {
-            $response = $httpClient->request('GET', $url);
+            $response = $this->httpClient->request('GET', $url);
             $statusCode = $response->getStatusCode();
         } catch (HttpExceptionInterface $e) {
             $statusCode = 0;

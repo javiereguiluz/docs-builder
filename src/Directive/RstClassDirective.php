@@ -44,8 +44,9 @@ class RstClassDirective extends SubDirective
     ): Node|null {
         $classes = explode(' ', $directive->getData());
 
+        $slugger = new AsciiSlugger();
         $normalizedClasses = array_map(
-            static fn (string $class): string => (new AsciiSlugger())->slug($class)->lower()->toString(),
+            fn (string $class): string => $slugger->slug($class)->lower()->toString(),
             $classes,
         );
 

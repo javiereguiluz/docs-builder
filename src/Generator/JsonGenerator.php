@@ -15,7 +15,6 @@ use phpDocumentor\Guides\Nodes\DocumentTree\DocumentEntryNode;
 use phpDocumentor\Guides\Nodes\ProjectNode;
 use Symfony\Component\Console\Helper\ProgressBar;
 use Symfony\Component\Console\Output\NullOutput;
-use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\Filesystem\Filesystem;
 use SymfonyDocsBuilder\BuildConfig;
@@ -27,9 +26,6 @@ class JsonGenerator
     private $projectNode;
 
     private $buildConfig;
-
-    /** @var SymfonyStyle|null */
-    private $output;
 
     public function __construct(ProjectNode $projectNode, BuildConfig $buildConfig)
     {
@@ -47,7 +43,7 @@ class JsonGenerator
     {
         $fs = new Filesystem();
 
-        $progressBar = new ProgressBar($this->output ?: new NullOutput());
+        $progressBar = new ProgressBar(new NullOutput());
         $progressBar->setMaxSteps(\count($this->projectNode->getAllDocumentEntries()));
 
         $walkedFiles = [];
@@ -69,7 +65,7 @@ class JsonGenerator
 
             // happens when some doc is a partial included in other doc an it doesn't have any titles
             $toc = $this->generateToc($documentEntry, $crawler);
-            $next = $this->determineNext($parserFilename, $flattenedTocTree, $masterDocument);
+            $next = $this->determineNext($parserFilename, $flattenedTocTree);
             $prev = $this->determinePrev($parserFilename, $flattenedTocTree);
             $data = [
                 'title' => $documentEntry->getTitle()->toString(),
@@ -94,11 +90,6 @@ class JsonGenerator
         $progressBar->finish();
 
         return $fJsonFiles;
-    }
-
-    public function setOutput(SymfonyStyle $output)
-    {
-        $this->output = $output;
     }
 
     private function generateToc(DocumentEntryNode $documentEntry, Crawler $crawler): array
@@ -126,7 +117,7 @@ class JsonGenerator
         foreach ($flatTocTree as $tocItem) {
             if (1 === $tocItem['level']) {
                 $nestedTocTree[] = $tocItem;
-            } else {
+            } elseif ([] !== $nestedTocTree) {
                 $nestedTocTree[\count($nestedTocTree) - 1]['children'][] = $tocItem;
             }
         }
@@ -136,48 +127,34 @@ class JsonGenerator
 
     private function determineNext(string $parserFilename, array $flattenedTocTree): ?array
     {
-        $foundCurrentFile = false;
-        $nextFileName = null;
+        $index = array_flip($flattenedTocTree);
 
-        foreach ($flattenedTocTree as $filename) {
-            if ($foundCurrentFile) {
-                $nextFileName = $filename;
-
-                break;
-            }
-
-            if ($filename === $parserFilename) {
-                $foundCurrentFile = true;
-            }
-        }
-
-        // no next document found!
-        if (null === $nextFileName) {
+        if (!isset($index[$parserFilename])) {
             return null;
         }
 
-        return $this->makeRelativeLink($parserFilename, $nextFileName);
+        $nextIndex = $index[$parserFilename] + 1;
+        if (!isset($flattenedTocTree[$nextIndex])) {
+            return null;
+        }
+
+        return $this->makeRelativeLink($parserFilename, $flattenedTocTree[$nextIndex]);
     }
 
     private function determinePrev(string $parserFilename, array $flattenedTocTree): ?array
     {
-        $previousFileName = null;
-        $foundCurrentFile = false;
-        foreach ($flattenedTocTree as $filename) {
-            if ($filename === $parserFilename) {
-                $foundCurrentFile = true;
-                break;
-            }
+        $index = array_flip($flattenedTocTree);
 
-            $previousFileName = $filename;
-        }
-
-        // no previous document found!
-        if (null === $previousFileName || !$foundCurrentFile) {
+        if (!isset($index[$parserFilename])) {
             return null;
         }
 
-        return $this->makeRelativeLink($parserFilename, $previousFileName);
+        $prevIndex = $index[$parserFilename] - 1;
+        if ($prevIndex < 0) {
+            return null;
+        }
+
+        return $this->makeRelativeLink($parserFilename, $flattenedTocTree[$prevIndex]);
     }
 
     private function getDocumentEntry(string $parserFilename, bool $throwOnMissing = false): ?DocumentEntryNode
@@ -190,10 +167,6 @@ class JsonGenerator
 
             if ($throwOnMissing) {
                 throw new \Exception($message);
-            }
-
-            if ($this->output) {
-                $this->output->note($message);
             }
         }
 
@@ -237,11 +210,11 @@ class JsonGenerator
         foreach ($tocs as $toc) {
             foreach ($toc as $tocFilename) {
                 // only walk a file one time, the first time you see it
-                if (in_array($tocFilename, $walkedFiles, true)) {
+                if (isset($walkedFiles[$tocFilename])) {
                     continue;
                 }
 
-                $walkedFiles[] = $tocFilename;
+                $walkedFiles[$tocFilename] = true;
 
                 $hierarchy[$tocFilename] = $this->walkTocTreeAndReturnHierarchy($tocFilename, $walkedFiles);
             }
@@ -266,7 +239,7 @@ class JsonGenerator
         foreach ($tocTreeHierarchy as $filename => $tocTree) {
             $files[] = $filename;
 
-            $files = array_merge($files, $this->flattenTocTree($tocTree));
+            array_push($files, ...$this->flattenTocTree($tocTree));
         }
 
         return $files;

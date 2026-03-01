@@ -36,7 +36,9 @@ class MissingFilesChecker
             $sourcePath = u($file->getPathname())->after($this->buildConfig->getContentDir())->trimStart('/');
             $htmlFile = sprintf('%s/%s.html', $this->buildConfig->getOutputDir(), $sourcePath->slice(0, -4));
 
-            $firstLine = fgets(fopen($file->getRealPath(), 'rb'));
+            $handle = fopen($file->getRealPath(), 'rb');
+            $firstLine = fgets($handle);
+            fclose($handle);
             if (!$this->filesystem->exists($htmlFile) && ':orphan:' !== trim($firstLine)) {
                 $orphanedFiles[] = $htmlFile;
             }

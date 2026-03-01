@@ -21,9 +21,11 @@ use function is_a;
 class TabsNodeRenderer implements NodeRenderer, NodeRendererFactoryAware
 {
     private ?NodeRendererFactory $nodeRendererFactory = null;
+    private readonly AsciiSlugger $slugger;
 
     public function __construct(private readonly TemplateRenderer $templateRenderer)
     {
+        $this->slugger = new AsciiSlugger();
     }
 
     public function setNodeRendererFactory(NodeRendererFactory $nodeRendererFactory): void
@@ -41,12 +43,11 @@ class TabsNodeRenderer implements NodeRenderer, NodeRendererFactoryAware
         assert($node instanceof TabsNode);
         assert($this->nodeRendererFactory !== null);
 
-        $slugger = new AsciiSlugger();
         $tabs = [];
         foreach ($node->getTabs() as $tabNode) {
             assert($tabNode instanceof TabNode);
 
-            $tabSlug = $slugger->slug($tabNode->getTabName())->lower()->toString();
+            $tabSlug = $this->slugger->slug($tabNode->getTabName())->lower()->toString();
 
             $renderedContent = '';
             foreach ($tabNode->getChildren() as $child) {
