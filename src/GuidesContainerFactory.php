@@ -232,7 +232,7 @@ final class GuidesContainerFactory
 
         $container->register(VersionUrlPreNodeRenderer::class)
             ->setArgument('$symfonyVersion', $buildConfig->getSymfonyVersion())
-            ->addTag('phpdoc.guides.prerenderer');
+            ->addTag('phpdoc.guides.prerenderer', ['priority' => -200]);
     }
 
     private static function registerEventListeners(ContainerBuilder $container, BuildConfig $buildConfig, ?SymfonyStyle $io = null): void
