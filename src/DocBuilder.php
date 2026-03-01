@@ -3,6 +3,7 @@
 namespace SymfonyDocsBuilder;
 
 use League\Tactician\CommandBus;
+use phpDocumentor\FileSystem\Finder\Exclude;
 use phpDocumentor\FileSystem\FlySystemAdapter;
 use phpDocumentor\Guides\Compiler\CompilerContext;
 use phpDocumentor\Guides\Handlers\CompileDocumentsCommand;
@@ -49,6 +50,7 @@ final class DocBuilder
                 '',
                 'rst',
                 $projectNode,
+                new Exclude(),
             )
         );
 

@@ -11,6 +11,7 @@ namespace SymfonyDocsBuilder\Reference;
 
 use phpDocumentor\Guides\Nodes\Inline\HyperLinkNode;
 use phpDocumentor\Guides\Nodes\Inline\InlineNodeInterface;
+use phpDocumentor\Guides\Nodes\Inline\PlainTextInlineNode;
 use phpDocumentor\Guides\RestructuredText\Parser\DocumentParserContext;
 use phpDocumentor\Guides\RestructuredText\TextRoles\TextRole;
 use function Symfony\Component\String\u;
@@ -46,7 +47,7 @@ class PhpMethodReference implements TextRole
         $className = $className->replace('\\\\', '\\');
 
         return new HyperLinkNode(
-            $methodName.'()',
+            [new PlainTextInlineNode($methodName.'()')],
             sprintf('%s/%s.%s.php', $this->phpDocUrl, $className->replace('\\', '-')->lower(), $methodName->lower()),
         );
     }

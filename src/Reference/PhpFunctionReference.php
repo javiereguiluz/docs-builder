@@ -11,6 +11,7 @@ namespace SymfonyDocsBuilder\Reference;
 
 use phpDocumentor\Guides\Nodes\Inline\HyperLinkNode;
 use phpDocumentor\Guides\Nodes\Inline\InlineNodeInterface;
+use phpDocumentor\Guides\Nodes\Inline\PlainTextInlineNode;
 use phpDocumentor\Guides\RestructuredText\Parser\DocumentParserContext;
 use phpDocumentor\Guides\RestructuredText\TextRoles\TextRole;
 use function Symfony\Component\String\u;
@@ -38,7 +39,7 @@ class PhpFunctionReference implements TextRole
         string $rawContent,
     ): InlineNodeInterface {
         return new HyperLinkNode(
-            $content,
+            [new PlainTextInlineNode($content)],
             sprintf('%s/function.%s.php', $this->phpDocUrl, u($content)->replace('_', '-')->lower()),
         );
     }

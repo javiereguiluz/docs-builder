@@ -11,6 +11,7 @@ namespace SymfonyDocsBuilder\Reference;
 
 use phpDocumentor\Guides\Nodes\Inline\HyperLinkNode;
 use phpDocumentor\Guides\Nodes\Inline\InlineNodeInterface;
+use phpDocumentor\Guides\Nodes\Inline\PlainTextInlineNode;
 use phpDocumentor\Guides\RestructuredText\Parser\DocumentParserContext;
 use phpDocumentor\Guides\RestructuredText\TextRoles\TextRole;
 use function Symfony\Component\String\u;
@@ -70,6 +71,6 @@ class ClassReference implements TextRole
             $url = sprintf('%s/%s.php', $this->symfonyRepositoryUrl, $className->replace('\\', '/'));
         }
 
-        return new HyperLinkNode($className->afterLast('\\')->toString(), $url);
+        return new HyperLinkNode([new PlainTextInlineNode($className->afterLast('\\')->toString())], $url);
     }
 }

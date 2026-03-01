@@ -11,6 +11,7 @@ namespace SymfonyDocsBuilder\Reference;
 
 use phpDocumentor\Guides\Nodes\Inline\HyperLinkNode;
 use phpDocumentor\Guides\Nodes\Inline\InlineNodeInterface;
+use phpDocumentor\Guides\Nodes\Inline\PlainTextInlineNode;
 use phpDocumentor\Guides\RestructuredText\Parser\DocumentParserContext;
 use phpDocumentor\Guides\RestructuredText\TextRoles\TextRole;
 use function Symfony\Component\String\u;
@@ -48,7 +49,7 @@ class MethodReference implements TextRole
         $scrollTextFragment = sprintf('#:~:text=%s', rawurlencode('function '.$methodName));
 
         return new HyperLinkNode(
-            $methodName.'()',
+            [new PlainTextInlineNode($methodName.'()')],
             sprintf('%s/%s.php%s', $this->symfonyRepositoryUrl, $className->replace('\\', '/'), $scrollTextFragment),
         );
     }
