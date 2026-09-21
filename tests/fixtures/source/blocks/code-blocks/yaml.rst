@@ -10,3 +10,6 @@
         iso8601: 2001-12-14t21:59:43.10-05:00
         spaced: 2001-12-14 21:59:43.10 -5
         date: 2002-12-14
+        ROLE_*: ROLE_USER
+        ROLE_*_MODERATOR: ROLE_MODERATOR
+        "ROLE_BLOG_*": ROLE_BLOG_READER
